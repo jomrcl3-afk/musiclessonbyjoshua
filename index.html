@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#3a9fe6">
+<title>Les Musik Privat</title>
+<style>
+html,body{margin:0;height:100%;background:linear-gradient(165deg,#e6f4ff,#c2e2fa)}
+iframe{border:0;width:100%;height:100vh;height:100dvh;display:block}
+</style>
+</head>
+<body>
+<iframe id="app" allow="clipboard-write; web-share"></iframe>
+<script>
+// URL Aplikasi web dari Apps Script (berakhiran /exec)
+const APP = 'https://script.google.com/macros/s/AKfycbw1TS2naHvEdrWnOxdpufVjJe-wLN3xyTm7K5AFyeKPvQIaXy00ni5JM7Wmy3QOicXfow/exec';
+document.getElementById('app').src = APP + location.search;
+</script>
+</body>
+</html>

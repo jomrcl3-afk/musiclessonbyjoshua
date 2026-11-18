@@ -96,9 +96,41 @@ function delBy_(n, id) {
 
 function newToken_() { return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').slice(0, 24); }
 
+// Link ortu = nama anak + kode pendek, mis. joshua-k7m2 (mudah dibaca, tapi tidak bisa ditebak).
+function slug_(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'murid';
+}
+function kode_() {
+  const c = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let r = '';
+  for (let i = 0; i < 4; i++) r += c[Math.floor(Math.random() * c.length)];
+  return r;
+}
+function tokenNama_(nama, pakai) {
+  const ada = pakai || new Set(read_('Siswa').map(x => x.Token));
+  let t;
+  do { t = slug_(nama) + '-' + kode_(); } while (ada.has(t));
+  ada.add(t);
+  return t;
+}
+
 function tokens_() {
-  const sh = sh_('Siswa'), col = hdr_('Siswa').indexOf('Token') + 1;
-  read_('Siswa').filter(x => !x.Token).forEach(x => sh.getRange(x._row, col).setNumberFormat('@').setValue(newToken_()));
+  const sh = sh_('Siswa'), col = hdr_('Siswa').indexOf('Token') + 1, all = read_('Siswa');
+  const pakai = new Set(all.map(x => x.Token));
+  all.filter(x => !x.Token).forEach(x => sh.getRange(x._row, col).setNumberFormat('@').setValue(tokenNama_(x.Nama, pakai)));
+}
+
+// Jalankan SEKALI kalau ingin semua link ortu lama diganti ke format nama anak.
+// Perhatian: link lama yang sudah dikirim ke orang tua tidak bisa dibuka lagi.
+function ubahSemuaLinkOrtu() {
+  const sh = sh_('Siswa'), col = hdr_('Siswa').indexOf('Token') + 1, all = read_('Siswa');
+  const pakai = new Set();
+  all.forEach(x => {
+    const t = tokenNama_(x.Nama, pakai);
+    sh.getRange(x._row, col).setNumberFormat('@').setValue(t);
+    Logger.log(x.Nama + ' → ' + t);
+  });
 }
 
 function folder_(nm) {
@@ -150,10 +182,10 @@ function doGet(e) {
 
 // ---------- Tampilan orang tua (hanya baca, hanya satu anak) ----------
 function getProfilOrtu(token) {
-  token = String(token || '').replace(/[^\w-]/g, '');
-  if (token.length < 10) throw new Error('Link tidak valid');
-  const s = read_('Siswa').find(x => x.Token === token);
-  if (!s) throw new Error('Link tidak valid');
+  token = String(token || '').replace(/[^\w-]/g, '').toLowerCase();
+  if (token.length < 6) throw new Error('Link tidak valid');
+  const s = read_('Siswa').find(x => String(x.Token).toLowerCase() === token);
+  if (!s) { Utilities.sleep(1000); throw new Error('Link tidak valid'); }
   const pk = (o, ks) => { const r = {}; ks.forEach(k => r[k] = o[k]); return r; };
   return {
     s: pk(s, ['Nama','Instrumen','Level','Jadwal','Durasi','JmlPertemuan','Foto','LinkDokumentasi']),
@@ -184,7 +216,7 @@ function saveSiswa(pw, o) {
       const max = all.reduce((m, x) => Math.max(m, Number(String(x.ID).slice(1)) || 0), 0);
       o.ID = 'S' + String(max + 1).padStart(3, '0');
       o.Status = o.Status || 'Aktif';
-      o.Token = newToken_();
+      o.Token = tokenNama_(o.Nama);
       append_('Siswa', o);
     }
     return {id: o.ID, list: siswa_()};
@@ -211,7 +243,7 @@ function resetToken(pw, id) {
   auth_(pw);
   const f = ada_(id);
   const col = hdr_('Siswa').indexOf('Token') + 1;
-  sh_('Siswa').getRange(f._row, col).setNumberFormat('@').setValue(newToken_());
+  sh_('Siswa').getRange(f._row, col).setNumberFormat('@').setValue(tokenNama_(f.Nama));
   return siswa_();
 }
 

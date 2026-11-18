@@ -180,18 +180,42 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // agar bisa dibuka dari link pendek GitHub
 }
 
-// ---------- Tampilan orang tua (hanya baca, hanya satu anak) ----------
-function getProfilOrtu(token) {
+// ---------- Tampilan orang tua (hanya satu anak; bisa ganti foto profil) ----------
+function siswaToken_(token) {
   token = String(token || '').replace(/[^\w-]/g, '').toLowerCase();
   if (token.length < 6) throw new Error('Link tidak valid');
   const s = read_('Siswa').find(x => String(x.Token).toLowerCase() === token);
   if (!s) { Utilities.sleep(1000); throw new Error('Link tidak valid'); }
+  return s;
+}
+
+function getProfilOrtu(token) {
+  const s = siswaToken_(token);
   const pk = (o, ks) => { const r = {}; ks.forEach(k => r[k] = o[k]); return r; };
   return {
     s: pk(s, ['Nama','Instrumen','Level','Jadwal','Durasi','JmlPertemuan','Foto','LinkDokumentasi']),
     pres: read_('Presensi').filter(x => x.ID === s.ID).map(x => pk(x, ['Tanggal','Periode','Pertemuan','Status','Materi','Catatan'])),
     nilai: nilaiList_(s.ID).map(x => pk(x, ['Tanggal','Materi','Nilai','Catatan']))
   };
+}
+
+// Orang tua mengganti foto profil anaknya sendiri (lewat link khusus anak itu).
+function gantiFotoOrtu(token, b64) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const s = siswaToken_(token);
+    if (!b64 || String(b64).length > 2000000) throw new Error('Foto terlalu besar');
+    const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', 'foto_' + s.ID + '_ortu_' + Date.now() + '.jpg');
+    const f = folder_(FOLDER_FOTO).createFile(blob);
+    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    const url = 'https://drive.google.com/uc?id=' + f.getId();
+    const col = hdr_('Siswa').indexOf('Foto') + 1;
+    sh_('Siswa').getRange(s._row, col).setNumberFormat('@').setValue(url);
+    return url;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ---------- Awal & login ----------
